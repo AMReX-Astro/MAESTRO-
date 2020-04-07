@@ -1,5 +1,5 @@
 # INITIAL MODEL
-maestro.model_file = "ecsn.hse.25600"
+maestro.model_file = "ecsn.temp1p2.hse.hse.25600"
 maestro.drdxfac = 5
 
 #amrex.fpe_trap_invalid = 1
@@ -7,11 +7,14 @@ maestro.drdxfac = 5
 # GRIDDING AND REFINEMENT
 amr.max_level          = 3       # maximum level number allowed
 amr.n_cell             = 128 128 128
+#amr.n_cell             = 4 4 4
+#amr.n_cell             = 512 512 512
+#amr.n_cell             = 120 120 120
 amr.max_grid_size      = 64
-#amr.ref_ratio          = 2 2 2 2  
-
-amr.refine_grid_layout = 1       # chop grids up into smaller grids
-if nprocs > ngrids
+amr.ref_ratio          = 2 2 2 2 2 2 # refinement ratio 
+amr.blocking_factor    = 8       # block factor in grid generation
+# amr.refine_grid_layout = 1      # chop grids up into smaller grids if nprocs > ngrids
+maestro.regrid_int     = 10      # how often to regrid
 
 maestro.anelastic_cutoff_density = 1.e6
 maestro.base_cutoff_density = 1.e5
@@ -28,35 +31,31 @@ maestro.octant = true
 # PROBLEM SIZE
 geometry.prob_lo     =  0.0    0.0    0.0
 geometry.prob_hi     =  4.e7   4.e7   4.e7
-# geometry.prob_hi     =  5.e7   5.e7   5.e7
+# geometry.prob_hi     =  2.e8   2.e8   2.e8
+# geometry.prob_hi     =  1.5e7   1.5e7   1.5e7
 
 # TIME STEPPING
 maestro.max_step  = 30000
-maestro.init_iter = 1
-
-maestro.stop_time = 30000
+maestro.stop_time = 30000.
+maestro.small_dt = 1.e-30
+maestro.cfl       = 0.7    # cfl number for hyperbolic system
+                           # In this test problem, the velocity is
+                           # time-dependent.  We could use 0.9 in
+                           # the 3D test, but need to use 0.7 in 2D
+                           # to satisfy CFL condition.
 
 # PLOTFILES
-maestro.plot_file  = plt    # root name of plot file
+maestro.plot_file  = ecsn_plt    # root name of plot file
 maestro.plot_int   = 10     # number of timesteps between plot files
-#maestro.small_plot_int = 50
+# maestro.small_plot_int = 5
 
-#maestro.plot_vars = tfromp Hnuc X(ne20) X(o16) X(o20)
-#maestro.small_plot_vars = rho tfromp Hnuc X(ne20) X(o16) X(o20)
-#maestro.derive_plot_vars = tfromp Hnuc X(ne20) X(o16) X(o20)
-#maestro.derive_small_plot_vars = tfromp Hnuc X(ne20) X(o16) X(o20)
+# maestro.small_plot_vars = rho tfromp Hnuc p0pluspi X(ne20) X(o16) X(o20) X(si28) X(al27) X(h1) X(he4) X(p31) X(s32) X(mg24) X(f20)
 
 # CHECKPOINT
 maestro.check_base_name = chk
 maestro.chk_int         = 10
 
-maestro.cfl       = 0.7    # cfl number for hyperbolic system
-                           # In this test problem, the velocity is
-		           # time-dependent.  We could use 0.9 in
-		           # the 3D test, but need to use 0.7 in 2D
-		           # to satisfy CFL condition.
-
-maestro.init_shrink = 0.1e-1
+maestro.init_shrink = 5.e-2
 maestro.max_dt_growth = 1.1e0
 maestro.use_soundspeed_firstdt = true
 maestro.use_divu_firstdt = true
@@ -67,7 +66,10 @@ maestro.use_divu_firstdt = true
 # 2 = Outflow    5 = NoSlipWall
 maestro.lo_bc = 3 3 3
 maestro.hi_bc = 2 2 2
+#maestro.hi_bc = 3 3 3
 geometry.is_periodic =  0 0 0
+
+
 
 # VERBOSITY
 maestro.v              = 1       # verbosity
@@ -77,14 +79,19 @@ maestro.cg_verbose     = 0
 # ALGORITHMIC OPTIONS
 maestro.do_initial_projection = true
 maestro.init_divu_iter        = 3
+maestro.init_iter             = 1
 
+# maestro.do_burning = true
 maestro.do_burning = true
-
 maestro.evolve_base_state = false
-
 maestro.dpdt_factor = 0.0e0
-
 maestro.use_tfromp = true
+maestro.perturb_model = false
+maestro.use_exact_base_state = false
+
+# DEBUG FOR NAN
+# amrex.fpe_trap_invalid = 1       # floating point exception
+
 
 # tolerances for the initial projection
 maestro.eps_init_proj_cart = 1.e-12
@@ -111,13 +118,29 @@ maestro.eps_hg_bottom      = 1.e-4
   velpert_radius = 2.e7
   velpert_scale = 1.e7
   velpert_steep = 1.e5
-  tag_density_1 = 6.8e9
-  tag_density_2 = 1.e8
-  tag_density_3 = 1.e8
-  particle_temp_cutoff = 6.e8
-  particle_tpert_threshold = 2.e7
+  tag_density_1 = 8.e8
+
+  rtol_spec = 1.e-5
+  rtol_temp = 1.e-5
+  rtol_enuc = 1.e-5
+
+  atol_spec = 1.e-5
+  atol_temp = 1.e-5
+  atol_enuc = 1.e-5
 
   use_eos_coulomb = T
   retry_burn = T
+  retry_burn_max_change = 2.0e2
 /
+#  call_eos_in_rhs = T
+#  jacobian = 2
+#  renormalize_abundances = T
+#/
+#  retry_burn_max_change = 1.0e2
+  
+#  rtol_spec = 1.e-8
+#  rtol_temp = 1.e-6
+#  rtol_enuc = 1.e-6
+#  SMALL_X_SAFE = 1.0e-40
+#/
 
