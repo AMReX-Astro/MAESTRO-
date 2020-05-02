@@ -102,7 +102,9 @@ Maestro::ReactSDC (const Vector<MultiFab>& s_in,
                    const RealVector& p0,
                    const Real dt_in,
                    const Real time_in,
-                   Vector<MultiFab>& source)
+                   Vector<MultiFab>& source,
+                   const int sdc_iter,
+                   const int number_sdc_iterations)
 {
     // timer for profiling
     BL_PROFILE_VAR("Maestro::ReactSDC()",ReactSDC);
@@ -139,7 +141,7 @@ Maestro::ReactSDC (const Vector<MultiFab>& s_in,
     if (do_burning) {
 #ifdef SDC
         // do the burning, update s_out
-        Burner(s_in,s_out,p0,dt_in,time_in,source);
+        Burner(s_in,s_out,p0,dt_in,time_in,source,sdc_iter,number_sdc_iterations);
 #endif
         // pass temperature through for seeding the temperature update eos call
         for (int lev=0; lev<=finest_level; ++lev) {
@@ -265,7 +267,9 @@ void Maestro::Burner(const Vector<MultiFab>& s_in,
                      const RealVector& p0,
                      const Real dt_in,
                      const Real time_in,
-                     const Vector<MultiFab>& source)
+                     const Vector<MultiFab>& source,
+                     const int sdc_iter,
+                     const int number_sdc_iterations)
 {
     // timer for profiling
     BL_PROFILE_VAR("Maestro::BurnerSDC()",BurnerSDC);
@@ -321,7 +325,8 @@ void Maestro::Burner(const Vector<MultiFab>& s_in,
                     BL_TO_FORTRAN_ANYD(s_out_mf[mfi]),
                     BL_TO_FORTRAN_ANYD(source_mf[mfi]),
                     BL_TO_FORTRAN_ANYD(p0_cart_mf[mfi]), dt_in, time_in,
-                    BL_TO_FORTRAN_ANYD(mask[mfi]), use_mask);
+                    BL_TO_FORTRAN_ANYD(mask[mfi]), use_mask,
+                    sdc_iter, number_sdc_iterations);
             } else {
 #pragma gpu box(tileBox)
                 burner_loop(AMREX_INT_ANYD(tileBox.loVect()), 
@@ -331,7 +336,8 @@ void Maestro::Burner(const Vector<MultiFab>& s_in,
                     BL_TO_FORTRAN_ANYD(s_out_mf[mfi]),
                     BL_TO_FORTRAN_ANYD(source_mf[mfi]), 
                     p0.dataPtr(), dt_in, time_in,
-                    BL_TO_FORTRAN_ANYD(mask[mfi]), use_mask);
+                    BL_TO_FORTRAN_ANYD(mask[mfi]), use_mask,
+                    sdc_iter, number_sdc_iterations);
             }
         }
     }

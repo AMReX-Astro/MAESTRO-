@@ -358,9 +358,9 @@ Maestro::PlotFileMF (const int nPlot,
     }
 #else   
     if (dt_in < small_dt) {
-        ReactSDC(s_in, stemp, rho_Hext, p0_in, small_dt, t_in, sdc_source);
+        ReactSDC(s_in, stemp, rho_Hext, p0_in, small_dt, t_in, sdc_source, 0, 1);
     } else {
-        ReactSDC(s_in, stemp, rho_Hext, p0_in, dt_in*0.5, t_in, sdc_source);
+        ReactSDC(s_in, stemp, rho_Hext, p0_in, dt_in*0.5, t_in, sdc_source, 0, 1);
     }
     
     MakeReactionRates(rho_omegadot,rho_Hnuc,s_in);

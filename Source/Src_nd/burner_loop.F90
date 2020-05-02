@@ -352,7 +352,8 @@ contains
        s_out,    o_lo, o_hi, &
        source,   s_lo, s_hi, &
        p0_in, dt_in, time_in, &
-       mask,     m_lo, m_hi, use_mask) &
+       mask,     m_lo, m_hi, use_mask,
+       sdc_iter, number_sdc_iterations) &
        bind (C,name="burner_loop")
 
     use sdc_type_module, only: sdc_t
@@ -372,6 +373,7 @@ contains
     double precision, value, intent (in) :: time_in
     integer         , intent (in   ) :: mask(m_lo(1):m_hi(1),m_lo(2):m_hi(2),m_lo(3):m_hi(3))
     integer, value  , intent (in   ) :: use_mask
+    integer, value  , intent (in   ) :: sdc_iter, number_sdc_iterations
 
     ! local
     integer          :: i, j, k, r
@@ -440,6 +442,8 @@ contains
                    state_in % j = j
                    state_in % k = k
                    state_in % success = .true.
+                   state_in % sdc_iter = sdc_iter
+                   state_in % num_sdc_iters = number_sdc_iterations
 
                    call integrator(state_in, state_out, dt_in, time_in)
                    
@@ -475,7 +479,8 @@ contains
        s_out,    o_lo, o_hi, &
        source,   s_lo, s_hi, &
        p0_cart, t_lo, t_hi, dt_in, time_in, &
-       mask,     m_lo, m_hi, use_mask) &
+       mask,     m_lo, m_hi, use_mask,
+       sdc_iter, number_sdc_iterations) &
        bind (C,name="burner_loop_sphr")
 
     use sdc_type_module, only: sdc_t
@@ -495,6 +500,7 @@ contains
     double precision, value, intent (in) :: time_in
     integer         , intent (in   ) :: mask(m_lo(1):m_hi(1),m_lo(2):m_hi(2),m_lo(3):m_hi(3))
     integer, value  , intent (in   ) :: use_mask
+    integer, value  , intent (in   ) :: sdc_iter, number_sdc_iterations
 
     ! local
     integer          :: i, j, k
@@ -558,6 +564,9 @@ contains
                    state_in % i = i
                    state_in % j = j
                    state_in % k = k
+                   state_in % success = .true.
+                   state_in % sdc_iter = sdc_iter
+                   state_in % num_sdc_iters = number_sdc_iterations
 
                    call integrator(state_in, state_out, dt_in, time_in)
 

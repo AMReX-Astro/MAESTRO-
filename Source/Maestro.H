@@ -1467,7 +1467,8 @@ public:
                    const RealVector& p0,
                    const amrex::Real dt_react,
                    const amrex::Real time_react,
-                   amrex::Vector<amrex::MultiFab>& source);
+                   amrex::Vector<amrex::MultiFab>& source,
+                   const int sdc_iter, const int number_sdc_iterations);
 
 #ifndef SDC
     void Burner (const amrex::Vector<amrex::MultiFab>& s_in,
@@ -1485,7 +1486,8 @@ public:
                  const RealVector& p0,
                  const amrex::Real dt_react,
                  const amrex::Real time_react,
-                 const amrex::Vector<amrex::MultiFab>& source);
+                 const amrex::Vector<amrex::MultiFab>& source,
+                 const int sdc_iter, const int number_sdc_iterations);
 #endif
     
     // compute heating terms, rho_omegadot and rho_Hnuc

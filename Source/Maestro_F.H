@@ -122,7 +122,7 @@ extern "C"
                          const amrex::Real dt_in,
                          const amrex::Real time_in,
                          const int* mask, const int* m_lo, const int* m_hi,
-                         const int use_mask);
+                         const int use_mask, const int sdc_iter, const int number_sdc_iterations);
 
     void burner_loop_sphr(const int* lo, const int* hi,
                               const amrex::Real* s_in,     const int* i_lo, const int* i_hi,
@@ -132,7 +132,7 @@ extern "C"
                               const amrex::Real dt_in,
                               const amrex::Real time_in,
                               const int* mask, const int* m_lo, const int* m_hi,
-                              const int use_mask);
+                              const int use_mask, const int sdc_iter, const int number_sdc_iterations);
 #endif
     
     void instantaneous_reaction_rates(const int* lo, const int* hi,
