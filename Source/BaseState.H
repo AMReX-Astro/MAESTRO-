@@ -65,8 +65,8 @@ struct BaseStateArray {
     }
 
     /// if access using only one index, then this ignores the underlying data structure. Useful for e.g. applying the same operation to all data.
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE T& operator()(const int i) const
-        noexcept {
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE T& operator()(
+        const int i) const noexcept {
         return dptr[i];
     }
 

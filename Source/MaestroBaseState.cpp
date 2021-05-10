@@ -173,7 +173,7 @@ void Maestro::InitBaseState(BaseState<Real>& rho0, BaseState<Real>& rhoh0,
                     xn_ambient[comp] * zion[comp] * aion_inv[comp];
                 aux_ambient[iabar] += xn_ambient[comp] * aion_inv[comp];
                 aux_ambient[ibea] +=
-                    xn_ambient[comp] * aprox19::bion(comp) * aion_inv[comp];
+                    xn_ambient[comp] * network::bion(comp + 1) * aion_inv[comp];
             }
 
             aux_ambient[iabar] = 1.0_rt / aux_ambient[iabar];
