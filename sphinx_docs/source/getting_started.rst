@@ -58,7 +58,7 @@ paper 3.
    If you choose to use the submodule, enter the ``MAESTROeX/``
    directory and type::
 
-      git submodule --init
+      git submodule init
 
    Note that in the future when you pull MAESTROeX, to make sure the
    Microphysics submodule is also updated you must instead use::
