@@ -139,7 +139,8 @@ void Maestro::MakeBeta0(BaseState<Real>& beta0_s, const BaseState<Real>& rho0_s,
 
                         Real integral = 0.0;
 
-                        if (nu == 0.0 || mu == 0.0 ||
+                        if (amrex::Math::abs(nu) == 0. ||
+                            amrex::Math::abs(mu) == 0. ||
                             (nu * gamma1bar(n, r) - mu * p0(n, r)) == 0.0 ||
                             ((gamma1bar(n, r) + 0.5 * mu * drp) /
                              (gamma1bar(n, r) - 0.5 * mu * drm)) <= 0.0 ||

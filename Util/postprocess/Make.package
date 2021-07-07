@@ -1,0 +1,8 @@
+CEXE_headers += Postprocess.H
+CEXE_sources += Postprocess.cpp
+CEXE_sources += Radial.cpp
+CEXE_sources += Slice.cpp
+CEXE_sources += Average.cpp
+CEXE_sources += Fill3dData.cpp
+CEXE_sources += InputFile.cpp
+CEXE_sources += test.cpp

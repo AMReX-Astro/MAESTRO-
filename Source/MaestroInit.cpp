@@ -32,7 +32,6 @@ void Maestro::Init() {
 
             WritePlotFile(plotInitData, t_old, 0, rho0_old, rhoh0_old, p0_old,
                           gamma1bar_old, uold, sold, S_cc_old);
-
         } else if (small_plot_int > 0 || small_plot_deltat > 0) {
             // Need to fill normal vector to compute velrc in plotfile
             if (spherical) {
@@ -44,6 +43,7 @@ void Maestro::Init() {
             WriteSmallPlotFile(plotInitData, t_old, 0, rho0_old, rhoh0_old,
                                p0_old, gamma1bar_old, uold, sold, S_cc_old);
         }
+
     } else {
         Print() << "Initializing from checkpoint " << restart_file << std::endl;
 
@@ -222,6 +222,10 @@ void Maestro::Init() {
             DiagFile(0, t_old, rho0_old, p0_old, uold, sold, index_dummy);
         }
     }
+
+#ifdef DO_PROBLEM_POST_INIT
+    ProblemPostInit();
+#endif
 }
 
 // fill in multifab and base state data

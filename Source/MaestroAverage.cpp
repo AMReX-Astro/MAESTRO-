@@ -456,3 +456,124 @@ void Maestro::Average(const Vector<MultiFab>& phi, BaseState<Real>& phibar,
         Gpu::synchronize();
     }
 }
+
+// Given a multifab of data (phi), average down to quantity on a plane, phibar.
+// Assume spherical case, and averaging is done in the psi direction,
+// resulting in averages on an x-z plane cutting through the north and south poles.
+
+void Maestro::Average2d(const Vector<MultiFab>& phi, Vector<MultiFab>& phibar,
+                        int barcomp, int comp, const Vector<Box>& bardomain) {
+    // timer for profiling
+    BL_PROFILE_VAR("Maestro::Average2d()", Average2d);
+
+    // construct a 2D array at finest level for phi to be mapped onto
+    Box domain = bardomain[0];
+    const int xlen = domain.hiVect()[0] + 1;
+    const int ylen = domain.hiVect()[2] + 1;
+
+    BaseState<Real> phisum_s(xlen, ylen);
+    auto phisum = phisum_s.array();
+    phisum_s.setVal(0.0);
+    BaseState<int> ncell_s(xlen, ylen);
+    auto ncell = ncell_s.array();
+    ncell_s.setVal(0);
+
+    const auto& center_p = center;
+
+    const auto dxFine = geom[finest_level].CellSizeArray();
+
+    // loop is over the existing levels (up to finest_level)
+    for (int lev = finest_level; lev >= 0; --lev) {
+        // Get the grid size of the domain
+        const auto dx = geom[lev].CellSizeArray();
+        const auto prob_lo = geom[lev].ProbLoArray();
+
+        // get references to the MultiFabs at level lev
+        const MultiFab& phi_mf = phi[lev];
+
+        // create mask assuming refinement ratio = 2
+        int finelev = lev + 1;
+        if (lev == finest_level) finelev = finest_level;
+
+        const BoxArray& fba = phi[finelev].boxArray();
+        const iMultiFab& mask = makeFineMask(phi_mf, fba, IntVect(2));
+
+        // Loop over boxes (make sure mfi takes a cell-centered multifab as an argument)
+#ifdef _OPENMP
+#pragma omp parallel if (!system::regtest_reduction)
+#endif
+        for (MFIter mfi(phi_mf, TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+            // Get the index space of the valid region
+            const Box& tilebox = mfi.tilebox();
+
+            const Array4<const int> mask_arr = mask.array(mfi);
+            const Array4<const Real> phi_arr = phi[lev].array(mfi, comp);
+
+            bool use_mask = !(lev == finest_level);
+
+            AMREX_PARALLEL_FOR_3D(tilebox, i, j, k, {
+                Real x = prob_lo[0] + (Real(i) + 0.5) * dx[0] - center_p[0];
+                Real y = prob_lo[1] + (Real(j) + 0.5) * dx[1] - center_p[1];
+                Real z = prob_lo[2] + (Real(k) + 0.5) * dx[2] - center_p[2];
+
+                // make sure the cell isn't covered by finer cells
+                bool cell_valid = true;
+                if (use_mask) {
+                    if (mask_arr(i, j, k) == 1) cell_valid = false;
+                }
+
+                if (cell_valid) {
+                    // compute distance to center
+                    Real radius = sqrt(x * x + y * y + z * z);
+
+                    // compute distances in mapped coordinates
+                    Real xp = sqrt(x * x + y * y);
+                    Real yp = center_p[2] + z;
+
+                    // figure out which (i,j) index this point maps into
+                    //  TODO: could give smoother results if coarse grid data is
+                    //  mapped into multiple fine grids
+                    int index_i = int(round(xp / dxFine[0] - 0.5));
+                    int index_j = int(round(yp / dxFine[2] - 0.5));
+
+                    // TODO: currently does not take data in domain corners
+                    if (index_i < xlen and index_j < ylen) {
+                        amrex::HostDevice::Atomic::Add(
+                            &(phisum(index_i, index_j)), phi_arr(i, j, k));
+                        amrex::HostDevice::Atomic::Add(
+                            &(ncell(index_i, index_j)), 1);
+                    }
+                }
+            });
+        }
+    }
+
+    // reduction over boxes to get sum
+    ParallelDescriptor::ReduceRealSum(phisum.dataPtr(), xlen * ylen);
+    ParallelDescriptor::ReduceIntSum(ncell.dataPtr(), xlen * ylen);
+
+    // normalize phisum so it actually stores the averages
+    for (auto i = 0; i < xlen; ++i) {
+        for (auto k = 0; k < ylen; ++k) {
+            if (ncell(i, k) != 0) {
+                phisum(i, k) /= Real(ncell(i, k));
+            }
+        }
+    }
+
+    // Put average array into 2D MultiFab
+    // Loop over boxes (make sure mfi takes a cell-centered multifab as an argument)
+#ifdef _OPENMP
+#pragma omp parallel if (!system::regtest_reduction)
+#endif
+    for (MFIter mfi(phibar[0], TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        // Get the index space of the valid region
+        const Box& tilebox = mfi.tilebox();
+        const Array4<Real> phibar_arr = phibar[0].array(mfi, barcomp);
+
+        AMREX_PARALLEL_FOR_3D(tilebox, i, j, k, {
+            phibar_arr(i, j, k) = 0.0;
+            if (j == 0) phibar_arr(i, j, k) = phisum(i, k);
+        });
+    }
+}

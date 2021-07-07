@@ -1459,6 +1459,69 @@ void Maestro::MakeVelrc(const Vector<MultiFab>& vel,
     FillPatch(t_old, circ_vel, circ_vel, circ_vel, 0, 0, 1, 0, bcs_f);
 }
 
+void Maestro::MakeVelrth(const Vector<MultiFab>& vel,
+                         const Vector<MultiFab>& w0rcart,
+                         Vector<MultiFab>& rad_vel,
+                         Vector<MultiFab>& theta_vel) {
+    // timer for profiling
+    BL_PROFILE_VAR("Maestro::MakeVelrth()", MakeVelrth);
+
+    const auto& center_p = center;
+
+    for (int lev = 0; lev <= finest_level; ++lev) {
+        const auto dx = geom[lev].CellSizeArray();
+        const auto prob_lo = geom[lev].ProbLoArray();
+
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+        for (MFIter mfi(vel[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+            // Get the index space of the valid region
+            const Box& tileBox = mfi.tilebox();
+
+            const Array4<const Real> vel_arr = vel[lev].array(mfi);
+            const Array4<Real> radvel_arr = rad_vel[lev].array(mfi);
+            const Array4<Real> thetavel_arr = theta_vel[lev].array(mfi);
+            const Array4<const Real> w0rcart_arr = w0rcart[lev].array(mfi);
+            const Array4<const Real> normal_arr = normal[lev].array(mfi);
+
+            AMREX_PARALLEL_FOR_3D(tileBox, i, j, k, {
+                thetavel_arr(i, j, k) = 0.0;
+                radvel_arr(i, j, k) = 0.0;
+
+                for (auto n = 0; n < AMREX_SPACEDIM; ++n) {
+                    radvel_arr(i, j, k) +=
+                        vel_arr(i, j, k, n) * normal_arr(i, j, k, n);
+                }
+
+                Real x = prob_lo[0] + (Real(i) + 0.5) * dx[0] - center_p[0];
+                Real y = prob_lo[1] + (Real(j) + 0.5) * dx[1] - center_p[1];
+                Real z = prob_lo[2] + (Real(k) + 0.5) * dx[2] - center_p[2];
+                Real inv_radius = 1.0 / sqrt(x * x + y * y + z * z);
+                Real inv_xy = 1.0 / sqrt(x * x + y * y);
+
+                Real theta_dir[3];
+                theta_dir[0] = x * inv_radius * z * inv_xy;
+                theta_dir[1] = y * inv_radius * z * inv_xy;
+                theta_dir[2] = -inv_radius / inv_xy;
+
+                for (auto n = 0; n < AMREX_SPACEDIM; ++n) {
+                    thetavel_arr(i, j, k) += vel_arr(i, j, k, n) * theta_dir[n];
+                }
+
+                // add base state vel to get full radial velocity
+                radvel_arr(i, j, k) += w0rcart_arr(i, j, k);
+            });
+        }
+    }
+
+    // average down and fill ghost cells
+    AverageDown(rad_vel, 0, 1);
+    FillPatch(t_old, rad_vel, rad_vel, rad_vel, 0, 0, 1, 0, bcs_f);
+    AverageDown(theta_vel, 0, 1);
+    FillPatch(t_old, theta_vel, theta_vel, theta_vel, 0, 0, 1, 0, bcs_f);
+}
+
 void Maestro::MakeAdExcess(const Vector<MultiFab>& state,
                            Vector<MultiFab>& ad_excess) {
     // timer for profiling

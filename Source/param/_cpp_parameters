@@ -583,6 +583,11 @@ reset_checkpoint_time        Real          -1.e200
 # and you set it to value greater than this default value.
 reset_checkpoint_step        int           -1
 
+# problem-dependent setting to control when you want to skip certain diagnostics
+# can be useful when you are computing integrated quantities over time and
+# want to ignore the data for some period of time while convection sets up
+diag_skip_time               Real           0.
+
 
 #-----------------------------------------------------------------------------
 # category: particles

@@ -4,7 +4,7 @@
 
 using namespace amrex;
 
-void Maestro::problem_post_timestep() {
+void Maestro::ProblemPostTimestep() {
     static const std::string script_name = "post_to_slack.sh";
 
     if ((plot_int > 0 && istep % plot_int == 0) ||

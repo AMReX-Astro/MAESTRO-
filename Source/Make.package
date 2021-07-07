@@ -68,6 +68,7 @@ CEXE_headers += MaestroPlot.H
 CEXE_headers += MaestroUtil.H
 CEXE_headers += PhysBCFunctMaestro.H
 CEXE_headers += state_indices.H
+CEXE_headers += Problem.H
 
 F90EXE_sources += meth_params.F90
 F90EXE_sources += state_indices_nd.F90

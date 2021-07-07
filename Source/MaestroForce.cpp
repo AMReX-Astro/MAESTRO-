@@ -158,8 +158,8 @@ void Maestro::MakeVelForce(
                 const auto omega_loc = omega;
 #endif
 
-                ParallelFor(tileBox, [=] AMREX_GPU_DEVICE(int i, int j,
-                                                          int k) noexcept {
+                amrex::ParallelFor(tileBox, [=] AMREX_GPU_DEVICE(
+                                                int i, int j, int k) noexcept {
 #ifdef ROTATION
                     const Real x = prob_lo[0] + (Real(i) + 0.5) * dx[0];
                     const Real y = prob_lo[1] + (Real(j) + 0.5) * dx[1];
