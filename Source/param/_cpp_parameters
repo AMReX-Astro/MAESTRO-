@@ -162,6 +162,9 @@ plot_omegadot                       bool            true
 # plot auxiliary variables in plotfile
 plot_aux                            bool            false
 
+# plot auxdot in plotfile
+plot_auxdot                         bool            false
+
 # plot external heating (Hext) in plotfile
 plot_Hext                           bool            false
 

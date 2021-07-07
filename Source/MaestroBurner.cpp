@@ -8,6 +8,9 @@ using namespace amrex;
 void Maestro::Burner(const Vector<MultiFab>& s_in, Vector<MultiFab>& s_out,
                      const Vector<MultiFab>& rho_Hext,
                      Vector<MultiFab>& rho_omegadot, Vector<MultiFab>& rho_Hnuc,
+#if NAUX_NET > 0
+                     Vector<MultiFab>& rho_auxdot,
+#endif
                      const BaseState<Real>& p0, const Real dt_in,
                      const Real time_in) {
     // timer for profiling
@@ -53,6 +56,9 @@ void Maestro::Burner(const Vector<MultiFab>& s_in, Vector<MultiFab>& s_out,
             const Array4<const Real> rho_Hext_arr = rho_Hext[lev].array(mfi);
             const Array4<Real> rho_omegadot_arr = rho_omegadot[lev].array(mfi);
             const Array4<Real> rho_Hnuc_arr = rho_Hnuc[lev].array(mfi);
+#if NAUX_NET > 0
+            const Array4<Real> rho_auxdot_arr = rho_auxdot[lev].array(mfi);
+#endif
             const auto tempbar_init_arr = tempbar_init.const_array();
 
             // use a dummy value for non-spherical as tempbar_init_cart is not defined
@@ -96,10 +102,11 @@ void Maestro::Burner(const Vector<MultiFab>& s_in, Vector<MultiFab>& s_out,
                 burn_t state_out;
 
                 Real x_out[NumSpec];
+                Real rhowdot[NumSpec];
 #if NAUX_NET > 0
                 Real aux_out[NumAux];
+                Real rhoauxdot[NumAux];
 #endif
-                Real rhowdot[NumSpec];
                 Real rhoH = 0.0;
 
                 // if the threshold species is not in the network, then we burn
@@ -146,6 +153,9 @@ void Maestro::Burner(const Vector<MultiFab>& s_in, Vector<MultiFab>& s_out,
 #if NAUX_NET > 0
                     for (int n = 0; n < NumAux; ++n) {
                         aux_out[n] = state_out.aux[n];
+                        rhoauxdot[n] = state_out.rho *
+                                       (state_out.aux[n] - state_in.aux[n]) /
+                                       dt_in;
                     }
 #endif
                     rhoH = state_out.rho * (state_out.e - state_in.e) / dt_in;
@@ -157,6 +167,7 @@ void Maestro::Burner(const Vector<MultiFab>& s_in, Vector<MultiFab>& s_out,
 #if NAUX_NET > 0
                     for (int n = 0; n < NumAux; ++n) {
                         aux_out[n] = aux_in[n];
+                        rhoauxdot[n] = 0.0;
                     }
 #endif
                 }
@@ -185,18 +196,20 @@ void Maestro::Burner(const Vector<MultiFab>& s_in, Vector<MultiFab>& s_out,
                     s_out_arr(i, j, k, FirstSpec + n) = x_out[n] * rho;
                 }
 
-                // update the auxiliary variables
-#if NAUX_NET > 0
-                for (int n = 0; n < NumAux; ++n) {
-                    s_out_arr(i, j, k, FirstAux + n) = aux_out[n] * rho;
-                }
-#endif
-
                 // store the energy generation and species create quantities
                 for (int n = 0; n < NumSpec; ++n) {
                     rho_omegadot_arr(i, j, k, n) = rhowdot[n];
                 }
                 rho_Hnuc_arr(i, j, k) = rhoH;
+
+                // update the auxiliary variables
+                // and store auxiliary create quantities
+#if NAUX_NET > 0
+                for (int n = 0; n < NumAux; ++n) {
+                    s_out_arr(i, j, k, FirstAux + n) = aux_out[n] * rho;
+                    rho_auxdot_arr(i, j, k, n) = rhoauxdot[n];
+                }
+#endif
 
                 // update the enthalpy -- include the change due to external heating
                 s_out_arr(i, j, k, RhoH) = s_in_arr(i, j, k, RhoH) +

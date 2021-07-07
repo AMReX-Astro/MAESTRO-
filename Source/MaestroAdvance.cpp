@@ -39,6 +39,9 @@ void Maestro::AdvanceTimeStep(bool is_initIter) {
     Vector<MultiFab> macphi(finest_level + 1);
     Vector<MultiFab> S_cc_nph(finest_level + 1);
     Vector<MultiFab> rho_omegadot(finest_level + 1);
+#if NAUX_NET > 0
+    Vector<MultiFab> rho_auxdot(finest_level + 1);
+#endif
     Vector<MultiFab> thermal1(finest_level + 1);
     Vector<MultiFab> thermal2(finest_level + 1);
     Vector<MultiFab> rho_Hnuc(finest_level + 1);
@@ -129,6 +132,9 @@ void Maestro::AdvanceTimeStep(bool is_initIter) {
         macphi[lev].define(grids[lev], dmap[lev], 1, 1);
         S_cc_nph[lev].define(grids[lev], dmap[lev], 1, 0);
         rho_omegadot[lev].define(grids[lev], dmap[lev], NumSpec, 0);
+#if NAUX_NET > 0
+        rho_auxdot[lev].define(grids[lev], dmap[lev], NumAux, 0);
+#endif
         thermal1[lev].define(grids[lev], dmap[lev], 1, 0);
         thermal2[lev].define(grids[lev], dmap[lev], 1, 0);
         rho_Hnuc[lev].define(grids[lev], dmap[lev], 1, 0);
@@ -232,7 +238,11 @@ void Maestro::AdvanceTimeStep(bool is_initIter) {
         Print() << "<<< STEP 1 : react state >>>" << std::endl;
     }
 
-    React(sold, s1, rho_Hext, rho_omegadot, rho_Hnuc, p0_old, 0.5 * dt, t_old);
+    React(sold, s1, rho_Hext, rho_omegadot, rho_Hnuc,
+#if NAUX_NET > 0
+          rho_auxdot,
+#endif
+          p0_old, 0.5 * dt, t_old);
 
     react_time += ParallelDescriptor::second() - react_time_start;
     ParallelDescriptor::ReduceRealMax(react_time,
@@ -613,8 +623,11 @@ void Maestro::AdvanceTimeStep(bool is_initIter) {
         Print() << "<<< STEP 5 : react state >>>" << std::endl;
     }
 
-    React(s2, snew, rho_Hext, rho_omegadot, rho_Hnuc, p0_new, 0.5 * dt,
-          t_old + 0.5 * dt);
+    React(s2, snew, rho_Hext, rho_omegadot, rho_Hnuc,
+#if NAUX_NET > 0
+          rho_auxdot,
+#endif
+          p0_new, 0.5 * dt, t_old + 0.5 * dt);
 
     react_time += ParallelDescriptor::second() - react_time_start;
     ParallelDescriptor::ReduceRealMax(react_time,
@@ -997,8 +1010,11 @@ void Maestro::AdvanceTimeStep(bool is_initIter) {
         Print() << "<<< STEP 9 : react state >>>" << std::endl;
     }
 
-    React(s2, snew, rho_Hext, rho_omegadot, rho_Hnuc, p0_new, 0.5 * dt,
-          t_old + 0.5 * dt);
+    React(s2, snew, rho_Hext, rho_omegadot, rho_Hnuc,
+#if NAUX_NET > 0
+          rho_auxdot,
+#endif
+          p0_new, 0.5 * dt, t_old + 0.5 * dt);
 
     react_time += ParallelDescriptor::second() - react_time_start;
     ParallelDescriptor::ReduceRealMax(react_time,

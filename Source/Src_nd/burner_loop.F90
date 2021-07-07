@@ -40,6 +40,9 @@ contains
        rho_Hext, e_lo, e_hi, &
        rho_odot, r_lo, r_hi, &
        rho_Hnuc, n_lo, n_hi, &
+#if NAUX_NET > 0
+       rho_adot, a_lo, a_hi, &
+#endif
        tempbar_init_in, dt_in, time_in, &
        mask,     m_lo, m_hi, use_mask) &
        bind (C,name="burner_loop")
@@ -61,6 +64,10 @@ contains
     double precision, intent (in   ) :: rho_Hext(e_lo(1):e_hi(1),e_lo(2):e_hi(2),e_lo(3):e_hi(3))
     double precision, intent (inout) :: rho_odot(r_lo(1):r_hi(1),r_lo(2):r_hi(2),r_lo(3):r_hi(3),nspec)
     double precision, intent (inout) :: rho_Hnuc(n_lo(1):n_hi(1),n_lo(2):n_hi(2),n_lo(3):n_hi(3))
+#if NAUX_NET > 0
+    integer         , intent (in   ) :: a_lo(3), a_hi(3)
+    double precision, intent (inout) :: rho_adot(a_lo(1):a_hi(1),a_lo(2):a_hi(2),a_lo(3):a_hi(3),naux)
+#endif
     double precision, intent (in   ) :: tempbar_init_in(0:max_radial_level,0:nr_fine-1)
     double precision, value, intent (in) :: dt_in
     double precision, value, intent (in) :: time_in
@@ -76,6 +83,7 @@ contains
 #if NAUX_NET > 0
     double precision :: aux_in(naux)
     double precision :: aux_out(naux)
+    double precision :: rhoauxdot(naux)
 #endif
     double precision :: rhowdot(nspec)
     double precision :: rhoH
@@ -158,6 +166,8 @@ contains
 #if NAUX_NET > 0
                    do n = 1, naux
                       aux_out(n) = state_out % aux(n)
+                      rhoauxdot(n) = state_out % rho * &
+                           (state_out % aux(n) - state_in % aux(n)) / dt_in
                    enddo
 #endif
                    do n = 1, nspec
@@ -169,6 +179,7 @@ contains
                    x_out = x_in
 #if NAUX_NET > 0
                    aux_out = aux_in
+                   rhoauxdot = 0.d0
 #endif
                    rhowdot = 0.d0
                    rhoH = 0.d0
@@ -200,7 +211,8 @@ contains
 #if NAUX_NET > 0
                 ! update the auxiliary variables 
                 do n = 1, naux
-                    s_out(i,j,k,n+aux_comp-1) = aux_out(n) * rho
+                   s_out(i,j,k,n+aux_comp-1) = aux_out(n) * rho
+                   rho_adot(i,j,k,n) = rhoauxdot(n)
                 enddo
 #endif
 
@@ -227,6 +239,9 @@ contains
        rho_Hext, e_lo, e_hi, &
        rho_odot, r_lo, r_hi, &
        rho_Hnuc, n_lo, n_hi, &
+#if NAUX_NET > 0
+       rho_adot, a_lo, a_hi, &
+#endif
        tempbar_init_cart, t_lo, t_hi, dt_in, time_in, &
        mask,     m_lo, m_hi, use_mask) &
        bind (C,name="burner_loop_sphr")
@@ -247,6 +262,10 @@ contains
     double precision, intent (in   ) :: rho_Hext(e_lo(1):e_hi(1),e_lo(2):e_hi(2),e_lo(3):e_hi(3))
     double precision, intent (inout) :: rho_odot(r_lo(1):r_hi(1),r_lo(2):r_hi(2),r_lo(3):r_hi(3),nspec)
     double precision, intent (inout) :: rho_Hnuc(n_lo(1):n_hi(1),n_lo(2):n_hi(2),n_lo(3):n_hi(3))
+#if NAUX_NET > 0
+    integer         , intent (in   ) :: a_lo(3), a_hi(3)
+    double precision, intent (inout) :: rho_adot(a_lo(1):a_hi(1),a_lo(2):a_hi(2),a_lo(3):a_hi(3),naux)
+#endif
     integer         , intent (in   ) :: t_lo(3), t_hi(3)
     double precision, intent (in   ) :: tempbar_init_cart(t_lo(1):t_hi(1),t_lo(2):t_hi(2),t_lo(3):t_hi(3))
     double precision, value, intent (in) :: dt_in
@@ -263,6 +282,7 @@ contains
 #if NAUX_NET > 0
     double precision :: aux_in(naux)
     double precision :: aux_out(naux)
+    double precision :: rhoauxdot(naux)
 #endif
     double precision :: rhowdot(nspec)
     double precision :: rhoH
@@ -340,6 +360,8 @@ contains
 #if NAUX_NET > 0
                    do n = 1, naux
                       aux_out(n) = state_out % aux(n)
+                      rhoauxdot(n) = state_out % rho * &
+                           (state_out % aux(n) - state_in % aux(n)) / dt_in
                    enddo
 #endif
                    do n = 1, nspec
@@ -351,6 +373,7 @@ contains
                    x_out = x_in
 #if NAUX_NET > 0
                    aux_out = aux_in
+                   rhoauxdot = 0.d0
 #endif
                    rhowdot = 0.d0
                    rhoH = 0.d0
@@ -382,7 +405,8 @@ contains
 #if NAUX_NET > 0
                 ! update the auxiliary variables 
                 do n = 1, naux
-                    s_out(i,j,k,n+aux_comp-1) = aux_out(n) * rho
+                   s_out(i,j,k,n+aux_comp-1) = aux_out(n) * rho
+                   rho_adot(i,j,k,n) = rhoauxdot(n)
                 enddo
 #endif
 
@@ -502,7 +526,7 @@ contains
                    state_in % ydot_a(1:nspec) = sdc_rhoX(1:nspec)
                    state_in % ydot_a(nspec+1) = sdc_rhoh
 #if NAUX_NET > 0
-                   state_in % aux(1:aux) = rhoaux_in(1:nspec) / rho_in
+                   state_in % aux(1:naux) = rhoaux_in(1:naux) / rho_in
 #endif
                    state_in % i = i
                    state_in % j = j
@@ -748,6 +772,9 @@ contains
                 ! initialize state variables
                 eos_state % rho = scal(i,j,k,rho_comp)
                 eos_state % xn(1:nspec) = scal(i,j,k,spec_comp:spec_comp+nspec-1) / eos_state % rho
+#if NAUX_NET > 0
+                eos_state % aux(1:naux) = scal(i,j,k,aux_comp:aux_comp+naux-1) / eos_state % rho
+#endif
                 eos_state % h   = scal(i,j,k,rhoh_comp) / eos_state % rho
                 
                 call eos_get_small_temp(temp_min)

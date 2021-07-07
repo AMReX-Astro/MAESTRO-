@@ -4,6 +4,9 @@ COMP	   = gnu
 USE_MPI    = TRUE
 USE_OMP    = FALSE
 USE_REACT  = TRUE
+# if using NSE
+# USE_CXX_REACTIONS = TRUE
+######
 USE_ROTATION = TRUE
 
 TINY_PROFILE = FALSE
@@ -19,13 +22,16 @@ MAESTROEX_HOME  := ../../..
 # If not we use the version in $(MICROPHYSICS_HOME)/Microphysics/(EOS/conductivity/networks)
 EOS_DIR          := helmholtz
 CONDUCTIVITY_DIR := stellar
-NETWORK_DIR      := aprox21
 INTEGRATOR_DIR   := VODE
+NETWORK_DIR      := aprox21
+
+# If using NSE
+# USE_NSE      = TRUE
+# NETWORK_DIR := aprox19
+#######
 
 Bpack   := ./Make.package
 Blocs   := .
 PROBIN_PARAMETER_DIRS := .
 
 include $(MAESTROEX_HOME)/Exec/Make.Maestro
-
-USE_ROTATION=FALSE

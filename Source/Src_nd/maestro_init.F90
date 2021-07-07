@@ -1,7 +1,7 @@
 module maestro_init_module
 
   use amrex_error_module
-  use network, only: network_init, nspec, short_spec_names
+  use network, only: network_init, nspec, short_spec_names, short_aux_names
   use amrex_paralleldescriptor_module, only: parallel_IOProcessor => amrex_pd_ioprocessor
   use amrex_fort_module, only: amrex_spacedim
   use model_parser_module

@@ -8,8 +8,12 @@ using namespace amrex;
 // react the state over dt_in and update rho_omegadot, rho_Hnuc
 void Maestro::React(const Vector<MultiFab>& s_in, Vector<MultiFab>& s_out,
                     Vector<MultiFab>& rho_Hext, Vector<MultiFab>& rho_omegadot,
-                    Vector<MultiFab>& rho_Hnuc, const BaseState<Real>& p0,
-                    const Real dt_in, const Real time_in) {
+                    Vector<MultiFab>& rho_Hnuc,
+#if NAUX_NET > 0
+                    Vector<MultiFab>& rho_auxdot,
+#endif
+                    const BaseState<Real>& p0, const Real dt_in,
+                    const Real time_in) {
     // timer for profiling
     BL_PROFILE_VAR("Maestro::React()", React);
 
@@ -42,8 +46,11 @@ void Maestro::React(const Vector<MultiFab>& s_in, Vector<MultiFab>& s_out,
 #ifndef SDC
         // do the burning, update rho_omegadot and rho_Hnuc
         // we pass in rho_Hext so that we can add it to rhoh in case we applied heating
-        Burner(s_in, s_out, rho_Hext, rho_omegadot, rho_Hnuc, p0, dt_in,
-               time_in);
+        Burner(s_in, s_out, rho_Hext, rho_omegadot, rho_Hnuc,
+#if NAUX_NET > 0
+               rho_auxdot,
+#endif
+               p0, dt_in, time_in);
 #endif
         // pass temperature through for seeding the temperature update eos call
         for (int lev = 0; lev <= finest_level; ++lev) {
@@ -153,172 +160,6 @@ void Maestro::ReactSDC(const Vector<MultiFab>& s_in, Vector<MultiFab>& s_out,
         TfromRhoH(s_out, p0);
     }
 }
-
-// #ifndef SDC
-// void Maestro::Burner(const Vector<MultiFab>& s_in, Vector<MultiFab>& s_out,
-//                      const Vector<MultiFab>& rho_Hext,
-//                      Vector<MultiFab>& rho_omegadot, Vector<MultiFab>& rho_Hnuc,
-//                      const BaseState<Real>& p0, const Real dt_in,
-//                      const Real time_in) {
-//     // timer for profiling
-//     BL_PROFILE_VAR("Maestro::Burner()", Burner);
-
-//     // Put tempbar_init on cart
-//     Vector<MultiFab> tempbar_init_cart(finest_level + 1);
-
-//     if (spherical) {
-//         for (int lev = 0; lev <= finest_level; ++lev) {
-//             tempbar_init_cart[lev].define(grids[lev], dmap[lev], 1, 0);
-//             tempbar_init_cart[lev].setVal(0.);
-//         }
-
-//         if (drive_initial_convection) {
-//             Put1dArrayOnCart(tempbar_init, tempbar_init_cart, false, false,
-//                              bcs_f, 0);
-//         }
-//     }
-
-//     RealVector tempbar_init_vec((base_geom.max_radial_level + 1) *
-//                                 base_geom.nr_fine);
-//     if (!spherical) {
-//         tempbar_init.toVector(tempbar_init_vec);
-//     }
-
-//     for (int lev = 0; lev <= finest_level; ++lev) {
-//         // get references to the MultiFabs at level lev
-//         const MultiFab& s_in_mf = s_in[lev];
-//         MultiFab& s_out_mf = s_out[lev];
-//         const MultiFab& rho_Hext_mf = rho_Hext[lev];
-//         MultiFab& rho_omegadot_mf = rho_omegadot[lev];
-//         MultiFab& rho_Hnuc_mf = rho_Hnuc[lev];
-//         const MultiFab& tempbar_cart_mf = tempbar_init_cart[lev];
-
-//         // create mask assuming refinement ratio = 2
-//         int finelev = lev + 1;
-//         if (lev == finest_level) {
-//             finelev = finest_level;
-//         }
-
-//         const BoxArray& fba = s_in[finelev].boxArray();
-//         const iMultiFab& mask = makeFineMask(s_in_mf, fba, IntVect(2));
-
-//         // loop over boxes (make sure mfi takes a cell-centered multifab as an argument)
-// #ifdef _OPENMP
-// #pragma omp parallel
-// #endif
-//         for (MFIter mfi(s_in_mf, TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-//             // Get the index space of the valid region
-//             const Box& tileBox = mfi.tilebox();
-
-//             const bool use_mask = !(lev == finest_level);
-
-//             // call fortran subroutine
-//             // use macros in AMReX_ArrayLim.H to pass in each FAB's data,
-//             // lo/hi coordinates (including ghost cells), and/or the # of components
-//             // We will also pass "validBox", which specifies the "valid" region.
-//             if (spherical) {
-// #pragma gpu box(tileBox)
-//                 burner_loop_sphr(AMREX_INT_ANYD(tileBox.loVect()),
-//                                  AMREX_INT_ANYD(tileBox.hiVect()),
-//                                  BL_TO_FORTRAN_ANYD(s_in_mf[mfi]),
-//                                  BL_TO_FORTRAN_ANYD(s_out_mf[mfi]),
-//                                  BL_TO_FORTRAN_ANYD(rho_Hext_mf[mfi]),
-//                                  BL_TO_FORTRAN_ANYD(rho_omegadot_mf[mfi]),
-//                                  BL_TO_FORTRAN_ANYD(rho_Hnuc_mf[mfi]),
-//                                  BL_TO_FORTRAN_ANYD(tempbar_cart_mf[mfi]),
-//                                  dt_in, time_in, BL_TO_FORTRAN_ANYD(mask[mfi]),
-//                                  (int)use_mask);
-//             } else {
-// #pragma gpu box(tileBox)
-//                 burner_loop(AMREX_INT_ANYD(tileBox.loVect()),
-//                             AMREX_INT_ANYD(tileBox.hiVect()), lev,
-//                             BL_TO_FORTRAN_ANYD(s_in_mf[mfi]),
-//                             BL_TO_FORTRAN_ANYD(s_out_mf[mfi]),
-//                             BL_TO_FORTRAN_ANYD(rho_Hext_mf[mfi]),
-//                             BL_TO_FORTRAN_ANYD(rho_omegadot_mf[mfi]),
-//                             BL_TO_FORTRAN_ANYD(rho_Hnuc_mf[mfi]),
-//                             tempbar_init_vec.dataPtr(), dt_in, time_in,
-//                             BL_TO_FORTRAN_ANYD(mask[mfi]), (int)use_mask);
-//             }
-//         }
-//     }
-// }
-
-// #else
-// // SDC burner
-// void Maestro::Burner(const Vector<MultiFab>& s_in, Vector<MultiFab>& s_out,
-//                      const BaseState<Real>& p0, const Real dt_in,
-//                      const Real time_in, const Vector<MultiFab>& source) {
-//     // timer for profiling
-//     BL_PROFILE_VAR("Maestro::BurnerSDC()", BurnerSDC);
-
-//     Vector<MultiFab> p0_cart(finest_level + 1);
-
-//     // make a Fortran-friendly RealVector of p0
-//     RealVector p0_vec((base_geom.max_radial_level + 1) * base_geom.nr_fine,
-//                       0.0);
-
-//     if (spherical) {
-//         for (int lev = 0; lev <= finest_level; ++lev) {
-//             p0_cart[lev].define(grids[lev], dmap[lev], 1, 0);
-//             p0_cart[lev].setVal(0.);
-//         }
-
-//         Put1dArrayOnCart(p0, p0_cart, false, false, bcs_f, 0);
-//     } else {
-//         p0.toVector(p0_vec);
-//     }
-
-//     for (int lev = 0; lev <= finest_level; ++lev) {
-//         // get references to the MultiFabs at level lev
-//         const MultiFab& s_in_mf = s_in[lev];
-//         MultiFab& s_out_mf = s_out[lev];
-//         const MultiFab& p0_cart_mf = p0_cart[lev];
-//         const MultiFab& source_mf = source[lev];
-
-//         // create mask assuming refinement ratio = 2
-//         int finelev = lev + 1;
-//         if (lev == finest_level) finelev = finest_level;
-
-//         const BoxArray& fba = s_in[finelev].boxArray();
-//         const iMultiFab& mask = makeFineMask(s_in_mf, fba, IntVect(2));
-
-//         // loop over boxes (make sure mfi takes a cell-centered multifab as an argument)
-// #ifdef _OPENMP
-// #pragma omp parallel
-// #endif
-//         for (MFIter mfi(s_in_mf, TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-//             // Get the index space of the valid region
-//             const Box& tileBox = mfi.tilebox();
-
-//             int use_mask = !(lev == finest_level);
-
-//             // call fortran subroutine
-
-//             if (spherical) {
-// #pragma gpu box(tileBox)
-//                 burner_loop_sphr(AMREX_INT_ANYD(tileBox.loVect()),
-//                                  AMREX_INT_ANYD(tileBox.hiVect()),
-//                                  BL_TO_FORTRAN_ANYD(s_in_mf[mfi]),
-//                                  BL_TO_FORTRAN_ANYD(s_out_mf[mfi]),
-//                                  BL_TO_FORTRAN_ANYD(source_mf[mfi]),
-//                                  BL_TO_FORTRAN_ANYD(p0_cart_mf[mfi]), dt_in,
-//                                  time_in, BL_TO_FORTRAN_ANYD(mask[mfi]),
-//                                  use_mask);
-//             } else {
-// #pragma gpu box(tileBox)
-//                 burner_loop(AMREX_INT_ANYD(tileBox.loVect()),
-//                             AMREX_INT_ANYD(tileBox.hiVect()), lev,
-//                             BL_TO_FORTRAN_ANYD(s_in_mf[mfi]),
-//                             BL_TO_FORTRAN_ANYD(s_out_mf[mfi]),
-//                             BL_TO_FORTRAN_ANYD(source_mf[mfi]),
-//                             p0_vec.dataPtr(), dt_in, time_in,
-//                             BL_TO_FORTRAN_ANYD(mask[mfi]), use_mask);
-//             }
-//         }
-//     }
-// }
-// #endif
 
 // compute heating terms, rho_omegadot and rho_Hnuc
 void Maestro::MakeReactionRates(Vector<MultiFab>& rho_omegadot,

@@ -1,5 +1,5 @@
-
 #include <Maestro.H>
+
 using namespace amrex;
 
 // initializes data on a specific level
@@ -71,6 +71,18 @@ void Maestro::InitLevelDataSphr(const int lev, const Real time, MultiFab& scal,
         MultiFab::Copy(scal, temp_mf, 0, FirstSpec + comp, 1, 0);
     }
 
+#if NAUX_NET > 0
+    for (auto comp = 0; comp < NumAux; ++comp) {
+        for (auto l = 0; l <= base_geom.max_radial_level; ++l) {
+            for (auto r = 0; r < base_geom.nr_fine; ++r) {
+                temp_arr(l, r) = s0_arr(l, r, FirstAux + comp);
+            }
+        }
+        Put1dArrayOnCart(lev, temp_vec, temp_mf, 0, 0, bcs_s, FirstAux + comp);
+        MultiFab::Copy(scal, temp_mf, 0, FirstAux + comp, 1, 0);
+    }
+#endif
+
 #ifdef _OPENMP
 #pragma omp parallel
 #endif
@@ -97,6 +109,12 @@ void Maestro::InitLevelDataSphr(const int lev, const Real time, MultiFab& scal,
                 eos_state.xn[comp] =
                     scal_arr(i, j, k, FirstSpec + comp) / eos_state.rho;
             }
+#if NAUX_NET > 0
+            for (auto comp = 0; comp < NumAux; ++comp) {
+                eos_state.aux[comp] =
+                    scal_arr(i, j, k, FirstAux + comp) / eos_state.rho;
+            }
+#endif
 
             eos(eos_input_rp, eos_state);
 
