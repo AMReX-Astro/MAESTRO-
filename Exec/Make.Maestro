@@ -299,9 +299,6 @@ clean::
 	$(SILENT) $(RM) AMReX_buildInfo.cpp
 	$(SILENT) $(RM) $(MAESTROEX_AUTO_SOURCE_DIR)/*.H $(MAESTROEX_AUTO_SOURCE_DIR)/*.[fF]90
 
-clean::
-	@if [ -L helm_table.dat ]; then rm -f helm_table.dat; fi
-
 
 # for debugging.  To see the value of a Makefile variable,
 # e.g. Fmlocs, simply do "make print-Fmlocs".  This will print out the
